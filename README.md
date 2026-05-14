@@ -1,3 +1,12 @@
+---
+title: Conversational Hiring Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # 🧠 SHL Conversational Assessment Recommender
 
 A conversational AI agent built with **FastAPI** + **Gemini** + **FAISS** that helps hiring managers and recruiters find the right SHL assessments through natural dialogue.
