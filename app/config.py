@@ -15,8 +15,8 @@ INDEX_DIR = DATA_DIR / "catalog_index"
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
 
 # Groq Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.environ.get("GROQ_MODEL") or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # Gemini Configuration (backup)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

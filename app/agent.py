@@ -16,6 +16,10 @@ class SHLAgent:
     """Conversational agent that recommends SHL assessments."""
 
     def __init__(self):
+        if not GROQ_API_KEY:
+            logger.error("CRITICAL: GROQ_API_KEY is missing!")
+        else:
+            logger.info(f"GROQ_API_KEY found (starts with: {GROQ_API_KEY[:6]}...)")
         self.client = Groq(api_key=GROQ_API_KEY)
         self._catalog_loaded = False
 
