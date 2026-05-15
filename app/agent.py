@@ -126,12 +126,39 @@ class SHLAgent:
                 json_str = re.sub(r'("reply"\s*:\s*)"([\s\S]*?)"(?=\s*,\s*"recommendations")', fix_reply, json_str)
                 data = json.loads(json_str)
             except:
-                # 5. Fallback: try to strip all literal newlines and hope for the best
-                try:
-                    fixed_str = re.sub(r'\n', ' ', json_str)
-                    data = json.loads(fixed_str)
-                except:
-                    return ChatResponse(reply=raw_text, recommendations=[], end_of_conversation=False)
+                # ULTIMATE BULLETPROOF FALLBACK
+                # If JSON is completely mangled (e.g., extra brackets like [ { {), 
+                # extract the reply and URLs manually so the UI NEVER breaks.
+                fallback_reply = raw_text
+                
+                # 1. Try to extract just the reply text
+                reply_match = re.search(r'"reply"\s*:\s*"([\s\S]*?)"(?=\s*,\s*"recommendations"|\s*,\s*"end_of_conversation")', json_str)
+                if reply_match:
+                    fallback_reply = reply_match.group(1).replace('\\n', '\n').replace('\\"', '"')
+                else:
+                    # Strip opening JSON brackets if visible
+                    fallback_reply = re.sub(r'^\{\s*"reply"\s*:\s*"', '', raw_text)
+                    fallback_reply = re.sub(r'"\s*,\s*"recommendations"[\s\S]*$', '', fallback_reply)
+
+                # 2. Extract any URLs to salvage the cards
+                fallback_recs = []
+                urls = re.findall(r'(https://www.shl.com/products/product-catalog/view/[^/"\s\']+)', raw_text)
+                for u in set(urls):
+                    # Rebuild from catalog
+                    for prod in retriever.catalog:
+                        if prod.get("link") == u:
+                            fallback_recs.append(
+                                Recommendation(
+                                    name=prod["name"],
+                                    url=u,
+                                    test_type=keys_to_test_type(prod.get("keys", [])),
+                                    duration=prod.get("duration", "Variable"),
+                                    languages=", ".join(prod.get("languages", ["English"])) if isinstance(prod.get("languages"), list) else str(prod.get("languages", "English")),
+                                )
+                            )
+                            break
+                            
+                return ChatResponse(reply=fallback_reply.strip(), recommendations=fallback_recs, end_of_conversation=False)
 
         reply = data.get("reply", "")
         end_of_conv = data.get("end_of_conversation", False)
