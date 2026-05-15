@@ -3,37 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e40af" />
   <title>SHL Assessment Recommender</title>
+  
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <!-- Custom Styles -->
   <link rel="stylesheet" href="/static/chat.css" />
 </head>
 <body>
   <div class="app" id="app">
+    <!-- Header -->
     <header class="header">
       <div class="header-inner">
-        <h1>SHL Assessment Recommender</h1>
-        <p class="subtitle">Describe your hiring need — paste a JD, refine the shortlist, ask questions. I’ll clarify before recommending.</p>
+        <h1>🧠 SHL Assessment Recommender</h1>
+        <p class="subtitle">Describe your hiring need — paste a JD, refine the shortlist, ask questions. I'll clarify before recommending.</p>
+      </div>
+      <div class="header-actions">
+        <button id="theme-toggle" aria-label="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
       </div>
     </header>
 
-    <main class="chat-panel" id="chat-panel" aria-live="polite"></main>
+    <!-- Chat Panel -->
+    <main class="chat-panel" id="chat-panel" aria-live="polite" aria-label="Chat messages"></main>
 
+    <!-- Composer (Input) -->
     <footer class="composer">
       <form id="chat-form" class="composer-form">
-        <label class="sr-only" for="user-input">Your message</label>
-        <textarea
-          id="user-input"
-          rows="2"
-          placeholder="e.g. Here's our JD for a senior full-stack engineer… (Shift+Enter for new line, Enter to send)"
-          autocomplete="off"
-        ></textarea>
+        <div class="input-wrapper">
+          <label class="sr-only" for="user-input">Your message</label>
+          <textarea
+            id="user-input"
+            rows="2"
+            placeholder="e.g. Senior Java developer with Spring and AWS expertise... (Shift+Enter for new line, Enter to send)"
+            autocomplete="off"
+            maxlength="500"
+            aria-describedby="char-count"
+          ></textarea>
+          <div class="char-counter" id="char-count">0/500</div>
+        </div>
+        
         <div class="composer-actions">
-          <button type="button" id="btn-reset" class="btn btn-ghost" title="Start new conversation">New chat</button>
-          <button type="submit" id="btn-send" class="btn btn-primary">Send</button>
+          <button type="button" id="btn-reset" class="btn btn-ghost" title="Start new conversation">
+            <i class="fas fa-plus"></i> New Chat
+          </button>
+          <button type="submit" id="btn-send" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Send
+          </button>
         </div>
       </form>
     </footer>
   </div>
 
+  <!-- Assessment Details Modal -->
+  <div id="assessment-modal">
+    <div class="modal-content">
+      <button id="modal-close" aria-label="Close details">
+        <i class="fas fa-times"></i>
+      </button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
   <script src="/static/chat.js"></script>
 </body>
 </html>
