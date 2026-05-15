@@ -75,11 +75,15 @@ User Request ──► FastAPI (/chat) ──► Conversation Controller
 ├── data/
 │   ├── catalog_clean.json   # Sanitized SHL product catalog (377 items)
 │   └── catalog_index/       # Pre-built FAISS vector index
+├── tests/                   # Pytest suite (smoke, contract, sample replay)
 ├── scripts/
-│   ├── evaluate.py          # Automated evaluation & groundedness testing
+│   ├── run_automated_tests.py  # One-command test runner for reviewers
+│   ├── evaluate.py          # Turn-by-turn benchmark vs C1–C10 samples
+│   ├── sample_parser.py     # Parser for GenAI sample markdown traces
 │   └── analyze_catalog.py   # Catalog sanitization and analysis script
+├── GenAI_SampleConversations/  # Gold reference traces (C1–C10)
 ├── Dockerfile               # Container configuration for cloud deployment
-├── requirements.txt         # Pinned production dependencies
+├── requirements.txt         # App + test dependencies
 └── README.md                # This file
 ```
 
@@ -124,10 +128,35 @@ The application is optimized for **HuggingFace Spaces** with a **16GB RAM** hard
 
 ---
 
-## 🧪 Evaluation
-Run the automated evaluation suite to verify groundedness and accuracy:
+## 🧪 Automated Testing (for reviewers)
+
+**Live API (default):** `https://adhamsafir-conversational-hiring-agent.hf.space`
+
+Run the full automated suite (health, OpenAPI, `/chat` contract, catalog grounding, sample replay):
+
 ```bash
-python scripts/evaluate.py
+pip install -r requirements.txt
+python scripts/run_automated_tests.py
+```
+
+Override deployment URL if needed:
+
+```bash
+API_BASE_URL=https://your-space.hf.space python scripts/run_automated_tests.py
+```
+
+| Command | What it runs |
+|---------|----------------|
+| `python scripts/run_automated_tests.py --offline-only` | Parser tests only (no network) |
+| `python scripts/run_automated_tests.py --no-replay` | Smoke + `/chat` contract only (fast) |
+| `pytest tests/ -v` | Same tests via pytest directly |
+| `python scripts/run_automated_tests.py --full-replay` | Replay all 10 gold conversations (slow) |
+
+### Evaluation benchmark (local agent + API keys)
+```bash
+python scripts/evaluate.py --dry-run          # parse C1–C10 only
+python scripts/evaluate.py --delay 3          # full local benchmark
+python scripts/evaluate.py --file C1.md --json-out results.json
 ```
 
 ---

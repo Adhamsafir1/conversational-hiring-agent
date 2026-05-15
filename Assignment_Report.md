@@ -99,15 +99,86 @@ While many free hosting services (like Render) limit RAM to 512MB, I chose **Hug
 ---
 
 ## 7. Evaluation Results
-The system was evaluated against the 10 provided sample conversation traces (`C1` through `C10`):
-*   **Groundedness:** 100% (All recommendations verified against catalog).
-*   **Relevance:** The agent successfully distinguished between technical skills (Java/Python), soft skills (OPQ32), and leadership potential.
-*   **Schema Compliance:** 100% (Validated via Pydantic).
+Evaluation uses the 10 provided sample traces (`GenAI_SampleConversations/C1.md`–`C10.md`) via `scripts/evaluate.py`:
 
-### 7.1 Performance & Accuracy
-*   **Accuracy:** 100% URL integrity achieved via the validation layer.
-*   **Latency:** Average response time of <2.5 seconds (warm state).
-*   **Reliability:** Successfully handles provider outages via automatic fallback.
+1. **Parser** (`scripts/sample_parser.py`) extracts each user turn, gold product URLs from markdown tables, and whether recommendations are expected on that turn.
+2. **Replay** feeds user turns sequentially through the live agent (full conversation history, as in production).
+3. **Scoring** computes precision, recall, and F1 on URL sets per turn, plus aggregate and per-scenario final-turn F1. Flags premature recommendations (recs when gold expects clarification) and missed turns.
+
+**Automated guarantees (deterministic layer):**
+*   **Groundedness:** Every returned URL is validated against `catalog_clean.json` before responding.
+*   **Schema compliance:** 100% via Pydantic (`ChatRequest` / `ChatResponse`).
+
+**Qualitative behaviour (observed across scenarios):** The agent distinguishes technical hiring (e.g. Java/AWS), contact-centre volume screening, leadership/OPQ stacks, and clarification-before-recommendation flows consistent with the sample traces.
+
+Run locally: `python scripts/evaluate.py --dry-run` (parse only) or `python scripts/evaluate.py --delay 3` (full benchmark; requires API quota).
+
+### 7.2 Automated Test Suite (Reviewer Instructions)
+
+Per the assignment requirement that **submitted API links remain accessible and functional for automated evaluation**, the project includes a pytest-based suite and a single entry-point runner. Graders do not need API keys locally — tests call the **live deployed API** on HuggingFace.
+
+#### 7.2.1 Accessible Endpoints (Live Deployment)
+
+| Endpoint | URL | Expected result |
+|----------|-----|-----------------|
+| **API base** | https://adhamsafir-conversational-hiring-agent.hf.space | FastAPI service |
+| **Health check** | https://adhamsafir-conversational-hiring-agent.hf.space/health | `{"status":"ok"}` |
+| **Interactive docs** | https://adhamsafir-conversational-hiring-agent.hf.space/docs | Swagger UI (HTTP 200) |
+| **OpenAPI spec** | https://adhamsafir-conversational-hiring-agent.hf.space/openapi.json | Schema with `/health` and `/chat` |
+| **Chat** | `POST` https://adhamsafir-conversational-hiring-agent.hf.space/chat | JSON `ChatResponse` |
+
+**GitHub repository:** https://github.com/Adhamsafir1/conversational-hiring-agent
+
+#### 7.2.2 How to Run Automated Tests
+
+From the repository root:
+
+```bash
+pip install -r requirements.txt
+python scripts/run_automated_tests.py
+```
+
+Optional flags:
+
+| Command | Purpose |
+|---------|---------|
+| `python scripts/run_automated_tests.py` | Full suite: offline parser tests → live smoke/contract → sample replay (C1, C10) |
+| `python scripts/run_automated_tests.py --no-replay` | Fast path: smoke + `/chat` contract only (~15s) |
+| `python scripts/run_automated_tests.py --offline-only` | Parser tests only (no network) |
+| `python scripts/run_automated_tests.py --full-replay` | Replay all 10 gold conversations (slow) |
+| `API_BASE_URL=https://your-host.hf.space python scripts/run_automated_tests.py` | Target a different deployment |
+
+Equivalent: `pytest tests/ -v`
+
+#### 7.2.3 Test Coverage
+
+| Module | Type | What it verifies |
+|--------|------|------------------|
+| `tests/test_parser.py` | Offline | All 10 `GenAI_SampleConversations/C*.md` files parse; gold URL counts (e.g. C1) |
+| `tests/test_smoke.py` | Live HTTP | `/health`, `/openapi.json`, `/docs` reachable |
+| `tests/test_api_contract.py` | Live HTTP | `/chat` JSON shape; `name`, `url`, `test_type` fields; URLs on `shl.com`; URLs exist in `catalog_clean.json`; multi-turn history |
+| `tests/test_sample_replay.py` | Live HTTP | Replays **C1** and **C10** turn-by-turn; scores URL precision/recall/F1 vs gold tables |
+
+**Pass criteria for grading:** Offline parser tests + live smoke + API contract tests must pass. Sample replay compares agent output to gold traces; if the deployment LLM is rate-limited, replay tests **skip** (not fail) so core API accessibility is still validated.
+
+#### 7.2.4 CI Integration
+
+GitHub Actions workflow `.github/workflows/automated-tests.yml` runs `python scripts/run_automated_tests.py` on push/PR against the production HuggingFace URL.
+
+#### 7.2.5 Local Benchmark (Optional, Requires API Keys)
+
+For deeper accuracy analysis against all ten gold traces (local agent, not HTTP):
+
+```bash
+python scripts/evaluate.py --dry-run
+python scripts/evaluate.py --delay 3
+python scripts/evaluate.py --file C1.md --json-out results.json
+```
+
+### 7.3 Performance & Reliability
+*   **URL integrity:** Invalid catalog links are dropped or corrected by name lookup in the validator.
+*   **Latency:** Target &lt;2.5s per turn in warm state (embedding model + FAISS cached).
+*   **Reliability:** Groq primary with Gemini fallback and multi-key rotation on 429 errors.
 
 ---
 
@@ -120,5 +191,9 @@ The current implementation provides a highly resilient, accurate, and fast recom
 ---
 
 **Submitted By:** Adham Safir
-**Project URL:** [https://adhamsafir-conversational-hiring-agent.hf.space](https://adhamsafir-conversational-hiring-agent.hf.space)
-**GitHub Repository:** [https://github.com/Adhamsafir1/conversational-hiring-agent](https://github.com/Adhamsafir1/conversational-hiring-agent)
+
+**Live API:** https://adhamsafir-conversational-hiring-agent.hf.space  
+**Health:** https://adhamsafir-conversational-hiring-agent.hf.space/health  
+**API docs:** https://adhamsafir-conversational-hiring-agent.hf.space/docs  
+**GitHub:** https://github.com/Adhamsafir1/conversational-hiring-agent  
+**Automated tests:** `pip install -r requirements.txt && python scripts/run_automated_tests.py`
