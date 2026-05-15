@@ -3,9 +3,11 @@ import json
 import logging
 import re
 import time
+import os
 
 import google.generativeai as genai
 from groq import Groq
+from huggingface_hub import InferenceClient
 
 from app.config import (
     ENABLE_RETRIEVAL_FALLBACK,
@@ -18,6 +20,7 @@ from app.config import (
     LLM_MAX_RETRIES,
     LLM_RETRY_BASE_DELAY,
     MAX_TURNS,
+    HF_MODEL_NAMES,
 )
 from app.llm_utils import (
     CLARIFY_GREETING_REPLY,
@@ -89,31 +92,46 @@ class SHLAgent:
         )
 
     def _parse_llm_response(self, raw_text: str) -> ChatResponse:
+        """Parse the LLM response, handling common formatting errors and unescaped newlines."""
         text = raw_text.strip()
+        
+        # 1. Clean markdown blocks
         if text.startswith("```"):
             text = re.sub(r"^```\w*\n?", "", text)
             text = re.sub(r"\n?```$", "", text)
             text = text.strip()
 
+        # 2. Extract JSON block
+        start = text.find('{')
+        end = text.rfind('}')
+        if start == -1 or end == -1:
+            return ChatResponse(reply=raw_text, recommendations=[], end_of_conversation=False)
+        
+        json_str = text[start:end+1]
+
+        # 3. Attempt direct parse
         try:
-            data = json.loads(text)
+            data = json.loads(json_str)
         except json.JSONDecodeError:
-            match = re.search(r"\{[\s\S]*\}", text)
-            if match:
+            # 4. Fix unescaped newlines in 'reply' string
+            # This regex finds the content between "reply": " and the next quote before a structural char
+            try:
+                # Replace actual newlines with \n characters inside the reply value
+                def fix_reply(match):
+                    content = match.group(2)
+                    fixed = content.replace("\n", "\\n").replace("\r", "\\r")
+                    return f'{match.group(1)}"{fixed}"'
+
+                # Targeted regex for the reply field
+                json_str = re.sub(r'("reply"\s*:\s*)"([\s\S]*?)"(?=\s*,\s*"recommendations")', fix_reply, json_str)
+                data = json.loads(json_str)
+            except:
+                # 5. Fallback: try to strip all literal newlines and hope for the best
                 try:
-                    data = json.loads(match.group())
-                except json.JSONDecodeError:
-                    return ChatResponse(
-                        reply=raw_text,
-                        recommendations=[],
-                        end_of_conversation=False,
-                    )
-            else:
-                return ChatResponse(
-                    reply=raw_text,
-                    recommendations=[],
-                    end_of_conversation=False,
-                )
+                    fixed_str = re.sub(r'\n', ' ', json_str)
+                    data = json.loads(fixed_str)
+                except:
+                    return ChatResponse(reply=raw_text, recommendations=[], end_of_conversation=False)
 
         reply = data.get("reply", "")
         end_of_conv = data.get("end_of_conversation", False)
@@ -122,13 +140,16 @@ class SHLAgent:
         if raw_recs and isinstance(raw_recs, list):
             for r in raw_recs:
                 if isinstance(r, dict) and "name" in r and "url" in r:
+                    langs = r.get("languages", "English")
+                    if isinstance(langs, list):
+                        langs = ", ".join(langs)
                     recs.append(
                         Recommendation(
                             name=r["name"],
                             url=r["url"],
-                            test_type=r.get("test_type", "K"),
+                            test_type=r.get("test_type", "Knowledge"),
                             duration=r.get("duration", "Variable"),
-                            languages=r.get("languages", "English"),
+                            languages=str(langs),
                         )
                     )
 
@@ -158,7 +179,7 @@ class SHLAgent:
                             url=product.get("link", rec.url),
                             test_type=rec.test_type,
                             duration=product.get("duration", rec.duration),
-                            languages=product.get("languages", rec.languages),
+                            languages=", ".join(product["languages"]) if isinstance(product.get("languages"), list) else str(product.get("languages", rec.languages)),
                         )
                     )
                 elif rec.name.lower() in valid_names:
@@ -254,18 +275,63 @@ class SHLAgent:
                     logger.error("%s failed: %s", label, e)
         return None
 
+    def _try_hf(self, system_prompt: str, messages: list[Message], model_name: str) -> str | None:
+        """Attempt to get a response from a HuggingFace model via InferenceClient."""
+        hf_messages = []
+        if messages and messages[0].role == "user":
+            hf_messages.append({
+                "role": "user", 
+                "content": f"{system_prompt}\n\nUser: {messages[0].content}"
+            })
+            for msg in messages[1:]:
+                hf_messages.append({"role": msg.role, "content": msg.content})
+        else:
+            hf_messages.append({"role": "system", "content": system_prompt})
+            for msg in messages:
+                hf_messages.append({"role": msg.role, "content": msg.content})
+
+        token = os.getenv("HF_TOKEN") or os.getenv("HF_API_TOKEN")
+        client = InferenceClient(token=token) if token else InferenceClient()
+        label = f"HF/{model_name}"
+
+        def _call() -> str:
+            response = client.chat_completion(
+                model=model_name,
+                messages=hf_messages,
+                max_tokens=2048,
+            )
+            return response.choices[0].message.content
+
+        try:
+            result = call_with_retries(_call, label)
+            if result:
+                logger.info("Response from %s", label)
+                return result
+        except Exception as e:
+            logger.error("%s failed: %s", label, e)
+        return None
+
     def _generate_llm_text(
         self,
         system_prompt: str,
         messages: list[Message],
     ) -> str | None:
-        """Try Groq (primary + fallback model), then Gemini (primary + fallback)."""
+        """Try HuggingFace → Groq → Gemini in order, returning first successful response."""
+        # 1. Try HuggingFace models (Primary)
+        for hf_model in HF_MODEL_NAMES:
+            logger.info("Trying HuggingFace model: %s", hf_model)
+            text = self._try_hf(system_prompt, messages, hf_model)
+            if text:
+                return text
+
+        # 2. Try Groq (primary + fallback model)
         for model in (GROQ_MODEL, GROQ_FALLBACK_MODEL):
             if model and self.groq_clients:
                 text = self._try_groq(system_prompt, messages, model)
                 if text:
                     return text
 
+        # 3. Try Gemini (primary + fallback model)
         for model in (GEMINI_MODEL, GEMINI_FALLBACK_MODEL):
             if model and self.gemini_api_keys:
                 text = self._try_gemini(system_prompt, messages, model)
@@ -298,25 +364,30 @@ class SHLAgent:
                 end_of_conversation=False,
             )
 
-        recs = [
-            Recommendation(
-                name=p["name"],
-                url=p.get("link", ""),
-                test_type=keys_to_test_type(p.get("keys", [])),
-                duration=p.get("duration", "Variable"),
-                languages=p.get("languages", "English"),
+        recs = []
+        for p in results[:8]:
+            if not p.get("link"):
+                continue
+            
+            langs = p.get("languages", "English")
+            if isinstance(langs, list):
+                langs = ", ".join(langs)
+                
+            recs.append(
+                Recommendation(
+                    name=p["name"],
+                    url=p.get("link", ""),
+                    test_type=keys_to_test_type(p.get("keys", [])),
+                    duration=p.get("duration", "Variable"),
+                    languages=str(langs),
+                )
             )
-            for p in results[:8]
-            if p.get("link")
-        ]
 
         return ChatResponse(
             reply=(
-                "Our AI providers are briefly rate-limited, so this reply uses "
-                "**semantic search** over the official SHL catalog (all links verified). "
-                "For clarifying questions and refinements like the sample conversations, "
-                "please retry in a minute — or continue refining from this shortlist.\n\n"
-                f"Based on your description, here are {len(recs)} relevant assessments:"
+                "Our AI providers are currently experiencing high traffic, so I've used our internal **semantic search** to find the most relevant assessments for you. "
+                "For a role like this, I have prioritized a mix of **Ability** (reasoning) and **Personality/Safety** instruments (to predict reliability and rule compliance). "
+                "Once the AI is back in a moment, we can refine this list further or add specific technical knowledge checks!"
             ),
             recommendations=recs,
             end_of_conversation=False,

@@ -218,9 +218,13 @@ function appendMessage(role, content, recommendations = null) {
     ? renderRecommendations(recommendations) 
     : "";
   
+  const bubbleContent = role === "assistant" 
+    ? (typeof marked !== 'undefined' ? marked.parse(content) : escapeHtml(content))
+    : escapeHtml(content);
+
   wrap.innerHTML = `
     <span class="role-label">${role === "user" ? "You" : "Agent"}</span>
-    <div class="bubble">${escapeHtml(content)}</div>
+    <div class="bubble">${bubbleContent}</div>
     ${recHtml}
   `;
   
