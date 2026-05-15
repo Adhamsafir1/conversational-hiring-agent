@@ -77,7 +77,11 @@ function renderAssessmentCard(rec, index) {
         <h3 class="card-title">${escapeHtml(rec.name)}</h3>
         <span class="card-badge">${typeInfo.name}</span>
       </div>
-      <p class="card-desc">Assessment type: <strong>${rec.test_type || "Unknown"}</strong></p>
+      <p class="card-desc">
+        <strong>${rec.test_type || "K"}</strong> | 
+        <i class="fas fa-clock"></i> ${rec.duration || "Variable"} | 
+        <i class="fas fa-globe"></i> ${rec.languages || "English"}
+      </p>
       <div class="card-footer">
         <a href="${escapeHtml(rec.url)}" target="_blank" rel="noopener" class="card-link">
           <i class="fas fa-external-link-alt"></i> View Assessment

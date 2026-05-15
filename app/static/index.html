@@ -1,24 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1e40af" />
   <title>SHL Assessment Recommender</title>
-  
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- Font Awesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  
+
   <!-- Custom Styles -->
   <link rel="stylesheet" href="/static/chat.css" />
 </head>
+
 <body>
   <div class="app" id="app">
     <!-- Header -->
     <header class="header">
       <div class="header-inner">
-        <h1>🧠 SHL Assessment Recommender</h1>
-        <p class="subtitle">Describe your hiring need — paste a JD, refine the shortlist, ask questions. I'll clarify before recommending.</p>
+        <h1>SHL Assessment Recommender</h1>
+        <p class="subtitle">Describe your hiring need — paste a JD, refine the shortlist, ask questions. I'll clarify
+          before recommending.</p>
       </div>
       <div class="header-actions">
         <button id="theme-toggle" aria-label="Toggle theme">
@@ -35,17 +43,12 @@
       <form id="chat-form" class="composer-form">
         <div class="input-wrapper">
           <label class="sr-only" for="user-input">Your message</label>
-          <textarea
-            id="user-input"
-            rows="2"
+          <textarea id="user-input" rows="2"
             placeholder="e.g. Senior Java developer with Spring and AWS expertise... (Shift+Enter for new line, Enter to send)"
-            autocomplete="off"
-            maxlength="500"
-            aria-describedby="char-count"
-          ></textarea>
+            autocomplete="off" maxlength="500" aria-describedby="char-count"></textarea>
           <div class="char-counter" id="char-count">0/500</div>
         </div>
-        
+
         <div class="composer-actions">
           <button type="button" id="btn-reset" class="btn btn-ghost" title="Start new conversation">
             <i class="fas fa-plus"></i> New Chat
@@ -71,4 +74,5 @@
   <!-- JavaScript -->
   <script src="/static/chat.js"></script>
 </body>
+
 </html>

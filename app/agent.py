@@ -70,7 +70,19 @@ class SHLAgent:
         query = self._extract_query_from_conversation(messages)
         if not query:
             return "No query provided."
-        results = retriever.search(query, top_k=20)
+        
+        results = retriever.search(query, top_k=40)
+        
+        # Always ensure core/proxy tests are in the context if available
+        core_test_names = ["Smart Interview Live Coding", "SHL Verify Interactive G+", "Occupational Personality Questionnaire OPQ32r"]
+        existing_names = {p.get("name") for p in results}
+        
+        for core_name in core_test_names:
+            if core_name not in existing_names:
+                core_product = retriever.get_by_name(core_name)
+                if core_product:
+                    results.append(core_product)
+
         return "\n".join(
             f"{i}. {retriever.format_product_for_context(product)}"
             for i, product in enumerate(results, 1)
@@ -115,6 +127,8 @@ class SHLAgent:
                             name=r["name"],
                             url=r["url"],
                             test_type=r.get("test_type", "K"),
+                            duration=r.get("duration", "Variable"),
+                            languages=r.get("languages", "English"),
                         )
                     )
 
@@ -143,6 +157,8 @@ class SHLAgent:
                             name=product["name"],
                             url=product.get("link", rec.url),
                             test_type=rec.test_type,
+                            duration=product.get("duration", rec.duration),
+                            languages=product.get("languages", rec.languages),
                         )
                     )
                 elif rec.name.lower() in valid_names:
@@ -153,6 +169,8 @@ class SHLAgent:
                                     name=p["name"],
                                     url=p.get("link", rec.url),
                                     test_type=rec.test_type,
+                                    duration=p.get("duration", rec.duration),
+                                    languages=p.get("languages", rec.languages),
                                 )
                             )
                             break
@@ -285,6 +303,8 @@ class SHLAgent:
                 name=p["name"],
                 url=p.get("link", ""),
                 test_type=keys_to_test_type(p.get("keys", [])),
+                duration=p.get("duration", "Variable"),
+                languages=p.get("languages", "English"),
             )
             for p in results[:8]
             if p.get("link")

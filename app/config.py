@@ -46,7 +46,7 @@ ENABLE_RETRIEVAL_FALLBACK = os.getenv("ENABLE_RETRIEVAL_FALLBACK", "true").lower
 
 # Retrieval Configuration
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-TOP_K_RETRIEVAL = 20  # Retrieve more, then let LLM rank
+TOP_K_RETRIEVAL = 40  # Retrieve more, then let LLM rank
 MAX_RECOMMENDATIONS = 10
 MIN_RECOMMENDATIONS = 1
 

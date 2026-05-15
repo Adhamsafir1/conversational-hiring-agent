@@ -19,6 +19,8 @@ class Recommendation(BaseModel):
     name: str
     url: str
     test_type: str
+    duration: str | None = "Variable"
+    languages: str | None = "English"
 
 
 class ChatResponse(BaseModel):
