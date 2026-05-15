@@ -3,8 +3,9 @@ import json
 import re
 import time
 import logging
+import google.generativeai as genai
 from groq import Groq
-from app.config import GROQ_API_KEY, GROQ_MODEL, MAX_TURNS
+from app.config import GROQ_API_KEYS, GROQ_MODEL, GEMINI_API_KEYS, GEMINI_MODEL, MAX_TURNS
 from app.models import ChatRequest, ChatResponse, Recommendation, Message
 from app.retriever import retriever
 from app.prompts import build_system_prompt
@@ -16,11 +17,22 @@ class SHLAgent:
     """Conversational agent that recommends SHL assessments."""
 
     def __init__(self):
-        if not GROQ_API_KEY:
-            logger.error("CRITICAL: GROQ_API_KEY is missing!")
+        # Initialize Groq clients
+        self.groq_clients = []
+        for key in GROQ_API_KEYS:
+            self.groq_clients.append(Groq(api_key=key))
+        
+        # Initialize Gemini models
+        self.gemini_clients = []
+        for key in GEMINI_API_KEYS:
+            genai.configure(api_key=key)
+            self.gemini_clients.append(genai.GenerativeModel(GEMINI_MODEL))
+
+        if not self.groq_clients and not self.gemini_clients:
+            logger.error("CRITICAL: No API keys found for any LLM provider!")
         else:
-            logger.info(f"GROQ_API_KEY found (starts with: {GROQ_API_KEY[:6]}...)")
-        self.client = Groq(api_key=GROQ_API_KEY)
+            logger.info(f"Initialized with {len(self.groq_clients)} Groq keys and {len(self.gemini_clients)} Gemini keys.")
+        
         self._catalog_loaded = False
 
     def _ensure_catalog(self):
@@ -183,41 +195,62 @@ class SHLAgent:
                 "Do not ask more questions."
             )
 
-        try:
-            # Build messages for Groq (OpenAI-compatible format)
-            groq_messages = [{"role": "system", "content": system_prompt}]
-            for msg in messages:
-                groq_messages.append({"role": msg.role, "content": msg.content})
+        raw_text = None
+        
+        # 1. Try Groq clients first
+        for i, client in enumerate(self.groq_clients):
+            try:
+                # Build messages for Groq (OpenAI-compatible format)
+                groq_messages = [{"role": "system", "content": system_prompt}]
+                for msg in messages:
+                    groq_messages.append({"role": msg.role, "content": msg.content})
 
-            # Retry with exponential backoff for rate limits
-            raw_text = None
-            max_retries = 3
-            for attempt in range(max_retries):
+                response = client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=groq_messages,
+                    temperature=0.3,
+                    max_tokens=2048,
+                )
+                raw_text = response.choices[0].message.content
+                logger.info(f"Response successfully generated using Groq client {i+1}.")
+                break
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "rate" in err_str.lower():
+                    logger.warning(f"Groq client {i+1} rate limited. Trying next provider...")
+                    continue
+                else:
+                    logger.error(f"Groq client {i+1} failed with error: {e}")
+                    continue
+
+        # 2. Fallback to Gemini if Groq failed
+        if raw_text is None:
+            logger.info("Falling back to Gemini providers...")
+            for i, model in enumerate(self.gemini_clients):
                 try:
-                    response = self.client.chat.completions.create(
-                        model=GROQ_MODEL,
-                        messages=groq_messages,
-                        temperature=0.3,
-                        max_tokens=2048,
+                    # Gemini prompt
+                    prompt = f"{system_prompt}\n\nConversation History:\n"
+                    for msg in messages:
+                        prompt += f"{msg.role}: {msg.content}\n"
+                    
+                    response = model.generate_content(
+                        prompt,
+                        generation_config=genai.GenerationConfig(
+                            temperature=0.3,
+                            max_output_tokens=2048,
+                        )
                     )
-                    raw_text = response.choices[0].message.content
+                    raw_text = response.text
+                    logger.info(f"Response successfully generated using Gemini client {i+1}.")
                     break
-                except Exception as retry_err:
-                    err_str = str(retry_err)
-                    if "429" in err_str or "rate" in err_str.lower():
-                        wait_time = 2 ** (attempt + 1)
-                        logger.warning(f"Rate limited, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
-                        time.sleep(wait_time)
-                    else:
-                        raise retry_err
+                except Exception as e:
+                    logger.error(f"Gemini client {i+1} failed: {e}")
+                    continue
 
-            if raw_text is None:
-                raise Exception("All retries exhausted due to rate limiting")
-
-        except Exception as e:
-            logger.error(f"LLM call failed: {e}")
+        if raw_text is None:
+            logger.error("All LLM providers and keys failed!")
             return ChatResponse(
-                reply="I apologize, but I'm having trouble processing your request. Could you please try again?",
+                reply="I apologize, but all my AI brains are currently busy or rate-limited. Please try again in a few minutes.",
                 recommendations=[],
                 end_of_conversation=False,
             )

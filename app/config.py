@@ -14,12 +14,23 @@ INDEX_DIR = DATA_DIR / "catalog_index"
 # LLM Provider: "groq" or "gemini"
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
 
-# Groq Configuration
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY", "")
+# Groq Configuration (Supports multiple keys separated by commas)
+_groq_keys_str = os.environ.get("GROQ_API_KEYS") or os.getenv("GROQ_API_KEYS", "")
+GROQ_API_KEYS = [k.strip() for k in _groq_keys_str.split(",") if k.strip()]
+if not GROQ_API_KEYS:
+    _single_key = os.environ.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY", "")
+    if _single_key:
+        GROQ_API_KEYS = [_single_key]
+
 GROQ_MODEL = os.environ.get("GROQ_MODEL") or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-# Gemini Configuration (backup)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# Gemini Configuration (Supports multiple keys separated by commas)
+_gemini_keys_str = os.environ.get("GEMINI_API_KEYS") or os.getenv("GEMINI_API_KEYS", "")
+GEMINI_API_KEYS = [k.strip() for k in _gemini_keys_str.split(",") if k.strip()]
+if not GEMINI_API_KEYS:
+    _single_gemini = os.environ.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY", "")
+    if _single_gemini:
+        GEMINI_API_KEYS = [_single_gemini]
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 # Retrieval Configuration
