@@ -5,9 +5,34 @@ This report outlines the development and deployment of a sophisticated Conversat
 
 ---
 
-## 2. System Architecture & Component Deep-Dive
+## 2. System Architecture & Design
 
-### 2.1 The Stateless Request Lifecycle
+### 2.1 High-Level Architecture Design
+The following flow illustrates the request lifecycle from user input to the final validated JSON response:
+
+```text
+User Request ──► FastAPI (/chat) ──► Conversation Controller
+                                              │
+                                              ▼
+                                        Intent Analysis
+                                      /    |    |    \
+                                Clarify  Recommend  Refine  Refuse
+                                          |    |
+                                   ┌──────┘    └──────┐
+                                   ▼                  ▼
+                           FAISS Retrieval      LLM Orchestrator
+                          (semantic search)    (Groq + Gemini Failover)
+                                   │                  │
+                                   └──────┬───────────┘
+                                          ▼
+                                 Deterministic Validator
+                               (link check against catalog)
+                                          │
+                                          ▼
+                                    JSON Response
+```
+
+### 2.2 The Stateless Request Lifecycle
 The API is built with **FastAPI** to handle high-concurrency asynchronous requests. Unlike traditional chatbots that store session state in a database, this system is entirely **stateless**. Each request to the `/chat` endpoint contains the full conversation history. This design choice simplifies scaling and ensures that the agent always has the complete context available for reasoning.
 
 ### 2.2 Semantic Retrieval Pipeline (RAG)
