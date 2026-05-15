@@ -57,4 +57,7 @@ RESPONSE_TIMEOUT = 30  # seconds
 # HuggingFace model configuration
 _hf_models_str = os.getenv("HF_MODEL_NAME", "meta-llama/Llama-3.2-1B-Instruct,Qwen/Qwen2.5-7B-Instruct")
 HF_MODEL_NAMES = [m.strip() for m in _hf_models_str.split(",") if m.strip()]
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
+
+# HuggingFace token rotation (Supports multiple tokens separated by commas)
+_hf_tokens_str = os.getenv("HF_TOKENS") or os.getenv("HF_API_TOKEN") or os.getenv("HF_TOKEN", "")
+HF_TOKENS = [t.strip() for t in _hf_tokens_str.split(",") if t.strip()]

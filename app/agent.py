@@ -276,7 +276,9 @@ class SHLAgent:
         return None
 
     def _try_hf(self, system_prompt: str, messages: list[Message], model_name: str) -> str | None:
-        """Attempt to get a response from a HuggingFace model via InferenceClient."""
+        """Attempt to get a response from a HuggingFace model via InferenceClient with token rotation."""
+        from app.config import HF_TOKENS
+        
         hf_messages = []
         if messages and messages[0].role == "user":
             hf_messages.append({
@@ -290,25 +292,35 @@ class SHLAgent:
             for msg in messages:
                 hf_messages.append({"role": msg.role, "content": msg.content})
 
-        token = os.getenv("HF_TOKEN") or os.getenv("HF_API_TOKEN")
-        client = InferenceClient(token=token) if token else InferenceClient()
-        label = f"HF/{model_name}"
+        # Try every token in the list
+        tokens_to_try = HF_TOKENS if HF_TOKENS else [None]
+        for i, token in enumerate(tokens_to_try):
+            label = f"HF/{model_name}/token{i+1}"
+            client = InferenceClient(token=token)
+            
+            def _call(cl=client) -> str:
+                response = cl.chat_completion(
+                    model=model_name,
+                    messages=hf_messages,
+                    max_tokens=2048,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
 
-        def _call() -> str:
-            response = client.chat_completion(
-                model=model_name,
-                messages=hf_messages,
-                max_tokens=2048,
-            )
-            return response.choices[0].message.content
-
-        try:
-            result = call_with_retries(_call, label)
-            if result:
-                logger.info("Response from %s", label)
-                return result
-        except Exception as e:
-            logger.error("%s failed: %s", label, e)
+            try:
+                result = call_with_retries(_call, label)
+                if result:
+                    logger.info("Response from %s", label)
+                    return result
+            except Exception as e:
+                err_str = str(e)
+                if "402" in err_str or "Payment Required" in err_str:
+                    logger.warning("%s credits depleted, trying next token...", label)
+                elif "429" in err_str or "Rate limit" in err_str:
+                    logger.warning("%s rate limited", label)
+                else:
+                    logger.error("%s failed: %s", label, e)
+        
         return None
 
     def _generate_llm_text(
