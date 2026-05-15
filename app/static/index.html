@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHL Assessment Recommender</title>
+  <link rel="stylesheet" href="/static/chat.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="header">
+      <div class="header-inner">
+        <h1>SHL Assessment Recommender</h1>
+        <p class="subtitle">Describe your hiring need — paste a JD, refine the shortlist, ask questions. I’ll clarify before recommending.</p>
+      </div>
+    </header>
+
+    <main class="chat-panel" id="chat-panel" aria-live="polite"></main>
+
+    <footer class="composer">
+      <form id="chat-form" class="composer-form">
+        <label class="sr-only" for="user-input">Your message</label>
+        <textarea
+          id="user-input"
+          rows="2"
+          placeholder="e.g. Here's our JD for a senior full-stack engineer… (Shift+Enter for new line, Enter to send)"
+          autocomplete="off"
+        ></textarea>
+        <div class="composer-actions">
+          <button type="button" id="btn-reset" class="btn btn-ghost" title="Start new conversation">New chat</button>
+          <button type="submit" id="btn-send" class="btn btn-primary">Send</button>
+        </div>
+      </form>
+    </footer>
+  </div>
+
+  <script src="/static/chat.js"></script>
+</body>
+</html>

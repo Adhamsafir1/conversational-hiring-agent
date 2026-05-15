@@ -66,7 +66,8 @@ User Request ──► FastAPI (/chat) ──► Conversation Controller
 ```
 .
 ├── app/
-│   ├── main.py              # FastAPI app — /health and /chat endpoints
+│   ├── main.py              # FastAPI app — chat UI, /health, /chat
+│   ├── static/              # Web chat UI (conversational interface)
 │   ├── agent.py             # Core logic + multi-provider LLM orchestration
 │   ├── retriever.py         # FAISS indexing + semantic search
 │   ├── prompts.py           # System prompts with grounding guardrails
@@ -114,7 +115,15 @@ GEMINI_MODEL=gemini-2.0-flash
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-Open **http://localhost:8000/docs** to test interactively.
+**Conversational chat UI:** open **http://localhost:8000/** and type naturally (multi-turn, like the sample conversations).
+
+API reference: **http://localhost:8000/docs**
+
+Terminal chat:
+```bash
+python scripts/chat_cli.py              # local agent
+python scripts/chat_cli.py --api https://adhamsafir-conversational-hiring-agent.hf.space
+```
 
 ---
 
@@ -161,5 +170,6 @@ python scripts/evaluate.py --file C1.md --json-out results.json
 
 ---
 
-**Live Demo:** [https://adhamsafir-conversational-hiring-agent.hf.space](https://adhamsafir-conversational-hiring-agent.hf.space)  
+**Live chat:** [https://adhamsafir-conversational-hiring-agent.hf.space](https://adhamsafir-conversational-hiring-agent.hf.space)  
+**API docs:** [https://adhamsafir-conversational-hiring-agent.hf.space/docs](https://adhamsafir-conversational-hiring-agent.hf.space/docs)  
 **Submitted By:** Adham Safir

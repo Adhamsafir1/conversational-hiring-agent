@@ -32,6 +32,17 @@ if not GEMINI_API_KEYS:
     if _single_gemini:
         GEMINI_API_KEYS = [_single_gemini]
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-1.5-flash")
+GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "llama-3.1-8b-instant")
+
+# LLM retry / degradation
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
+LLM_RETRY_BASE_DELAY = float(os.getenv("LLM_RETRY_BASE_DELAY", "2.0"))
+ENABLE_RETRIEVAL_FALLBACK = os.getenv("ENABLE_RETRIEVAL_FALLBACK", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
 # Retrieval Configuration
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"

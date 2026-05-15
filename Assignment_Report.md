@@ -121,6 +121,7 @@ Per the assignment requirement that **submitted API links remain accessible and 
 
 | Endpoint | URL | Expected result |
 |----------|-----|-----------------|
+| **Conversational chat UI** | https://adhamsafir-conversational-hiring-agent.hf.space | Natural multi-turn dialogue (web) |
 | **API base** | https://adhamsafir-conversational-hiring-agent.hf.space | FastAPI service |
 | **Health check** | https://adhamsafir-conversational-hiring-agent.hf.space/health | `{"status":"ok"}` |
 | **Interactive docs** | https://adhamsafir-conversational-hiring-agent.hf.space/docs | Swagger UI (HTTP 200) |

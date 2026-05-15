@@ -8,7 +8,9 @@ import httpx
 def test_health_returns_ok(http_client: httpx.Client) -> None:
     response = http_client.get("/health")
     assert response.status_code == 200, response.text
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data.get("llm_ready") is True
 
 
 def test_openapi_spec_available(http_client: httpx.Client) -> None:
@@ -22,3 +24,9 @@ def test_openapi_spec_available(http_client: httpx.Client) -> None:
 def test_docs_ui_available(http_client: httpx.Client) -> None:
     response = http_client.get("/docs")
     assert response.status_code == 200, response.text
+
+
+def test_chat_ui_available(http_client: httpx.Client) -> None:
+    response = http_client.get("/")
+    assert response.status_code == 200, response.text
+    assert "SHL Assessment Recommender" in response.text

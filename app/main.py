@@ -1,11 +1,18 @@
 """FastAPI application for the SHL Assessment Recommender."""
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 from app.models import ChatRequest, ChatResponse
 from app.agent import agent
 from app.retriever import retriever
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 # Configure logging
 logging.basicConfig(
@@ -42,10 +49,30 @@ app.add_middleware(
 )
 
 
+if STATIC_DIR.is_dir():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/")
+def chat_ui():
+    """Conversational web chat (natural multi-turn dialogue)."""
+    index = STATIC_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    return {"message": "Chat UI not found. Use POST /chat or /docs."}
+
+
 @app.get("/health")
 def health():
     """Health check endpoint. Returns status ok when service is ready."""
-    return {"status": "ok"}
+    from app.config import GEMINI_API_KEYS, GROQ_API_KEYS
+
+    return {
+        "status": "ok",
+        "groq_keys_configured": len(GROQ_API_KEYS),
+        "gemini_keys_configured": len(GEMINI_API_KEYS),
+        "llm_ready": bool(GROQ_API_KEYS or GEMINI_API_KEYS),
+    }
 
 
 @app.post("/chat", response_model=ChatResponse)
