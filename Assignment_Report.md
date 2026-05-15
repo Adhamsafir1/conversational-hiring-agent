@@ -12,12 +12,12 @@ The API is built with **FastAPI** to handle high-concurrency asynchronous reques
 
 ### 2.2 Semantic Retrieval Pipeline (RAG)
 The heart of the system is the RAG pipeline, which bridges the gap between the LLM's general knowledge and the specific SHL product catalog:
-*   **Vector Database:** We utilized **FAISS** (Facebook AI Similarity Search) for local, high-speed vector indexing.
-*   **Embedding Model:** We selected the **`all-MiniLM-L6-v2`** model. It provides a perfect balance between performance and memory footprint, allowing us to generate 384-dimensional dense vectors for all 377 products in the catalog.
+*   **Vector Database:** I utilized **FAISS** (Facebook AI Similarity Search) for local, high-speed vector indexing.
+*   **Embedding Model:** I selected the **`all-MiniLM-L6-v2`** model. It provides a perfect balance between performance and memory footprint, allowing us to generate 384-dimensional dense vectors for all 377 products in the catalog.
 *   **Similarity Scoring:** The system uses Inner Product (IP) similarity to find the top 20 most relevant assessments based on the user's hiring needs (Role, Seniority, and Skills).
 
 ### 2.3 The LLM Orchestrator
-We chose **Llama-3.3-70b-versatile** via **Groq** as our primary inference engine. With its 70 billion parameters, the model demonstrates superior reasoning capabilities in following the complex system instructions and JSON schemas required for this task.
+I chose **Llama-3.3-70b-versatile** via **Groq** as our primary inference engine. With its 70 billion parameters, the model demonstrates superior reasoning capabilities in following the complex system instructions and JSON schemas required for this task.
 
 ---
 
